@@ -8,7 +8,7 @@ Team members:
 
 We follow the proposal in https://arxiv.org/pdf/1703.08224.pdf to
 emulate a Majorana braiding operation on an Ising chain with ferromagnetic
-interaction and a transverse field. Following the mentionned paper, we will
+interaction and a transverse field. Following the mentioned paper, we will
 refer to the area of small transverse field in the which the exchange
 interaction dominate as being ferromagnetic and the area of large transverse
 field as paramagnetic.
@@ -22,7 +22,7 @@ Useful definitions
 We define the following quantity on the ferromagnetic domain:
 
 - logical zero |0> : (|↑↑↑> + |↓↓↓>)/√2
-- logical one |1> : |0> : (|↑↑↑> - |↓↓↓>)/√2
+- logical one |1> : (|↑↑↑> - |↓↓↓>)/√2
 
 We map the |0> state of the qubit to the spin state |↑>.
 
