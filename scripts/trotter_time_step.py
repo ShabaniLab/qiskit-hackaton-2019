@@ -109,6 +109,7 @@ if not os.path.isfile(RESULTS_PATH) or not USE_RESULTS:
 
     results = np.empty((5, len(TROTTER_STEPS)))
     for i, step in enumerate(TROTTER_STEPS):
+        print(f"Computation for Δt = {step}")
         for j, (l, c, b) in enumerate(
             zip(
                 (False, True, False, True, False),
@@ -116,11 +117,12 @@ if not os.path.isfile(RESULTS_PATH) or not USE_RESULTS:
                 (False, False, False, False, True),
             )
         ):
+            print(f"Case: logical_state {l}, coupler {c}, braiding {b}")
             results[j, i] = estimate_fidelity(step, l, c, b)
 
     df = pd.DataFrame(
         {
-            "Steps": np.array(steps),
+            "Steps": np.array(TROTTER_STEPS),
             "No coupler - |↑↑↑>": results[0],
             "No coupler - |0>": results[1],
             "Coupler - |↑↑↑>": results[2],
@@ -128,7 +130,8 @@ if not os.path.isfile(RESULTS_PATH) or not USE_RESULTS:
             "Braiding": results[4],
         }
     )
-    df.to_csv(RESULTS_PATH)
+    if RESULTS_PATH:
+        df.to_csv(RESULTS_PATH)
 else:
     df = pd.read_csv(RESULTS_PATH)
 
