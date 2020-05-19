@@ -24,7 +24,7 @@ COUPLER_STRENGTH = 1.2
 
 COUPLER_DURATION = 2
 
-SHOTS = 200
+SHOTS = 10
 
 TROTTER_STEPS = [0.01, 0.02, 0.04, 0.05, 0.1, 0.2, 0.4, 0.5, 1]
 
@@ -34,12 +34,14 @@ USE_RESULTS = True
 
 # --- Execution ------------------------------------------------------------------------
 
+import os
 import numpy as np
 import pandas as pd
 from qiskit.circuit import QuantumCircuit, QuantumRegister, ClassicalRegister
 from ising_kitaev import (
     initialize_chain,
-    run_adiabatic_zeeman_change,
+    initialize_coupler,
+    braid_chain,
     rotate_to_measurement_basis,
     add_measurement,
 )
@@ -79,13 +81,13 @@ def estimate_fidelity(timestep, use_logical_state, coupler, should_braid):
         np.pi,
         40,
         initial_config,
-        COUPLER_STRENGTH,
+        COUPLER_STRENGTH if coupler else None,
         GAP_FRACTION,
         MIN_INCREMENT,
         ZEEMAN_UPDATE_DELAY,
         COUPLER_DURATION,
-        int(round(ZEEMAN_UPDATE_DELAY, timestep)),
-        int(round(COUPLER_DURATION, timestep)),
+        int(round(ZEEMAN_UPDATE_DELAY / timestep)),
+        int(round(COUPLER_DURATION / timestep)),
         method="both",
     )
     if use_logical_state:

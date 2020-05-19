@@ -54,9 +54,9 @@ def interaction_hamiltonian(
 
     # Build the list of function to call to add the interaction
     to_call = [
-        (pair_interaction, (qc, q, j, j + 1, coupling))
-        if j != m
-        else (coupler_hamiltonian, (qc, q, j, j + 1, coupler_interaction))
+        (coupler_hamiltonian, (qc, q, j, j + 1, coupler_interaction))
+        if coupler_interaction and j == m
+        else (pair_interaction, (qc, q, j, j + 1, coupling))
         for j in range(0, n - 1)
     ]
 
@@ -142,6 +142,15 @@ def trotter(qc, q, zeeman, interaction, dt, nsteps, order=1, debug=False):
         t_step = trotter_step_2
     elif order == 4:
         t_step = trotter_step_4
+    else:
+        raise ValueError(f"Invalid trotter order: {order}")
 
     for i in range(nsteps):
-        t_step(qc, q, dt, zeeman * dt, interaction * dt, debug)
+        t_step(
+            qc,
+            q,
+            dt,
+            zeeman * dt,
+            interaction * dt if interaction else interaction,
+            debug,
+        )

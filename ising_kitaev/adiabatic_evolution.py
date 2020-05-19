@@ -243,6 +243,7 @@ def braid_chain(
     delay,
     rot_time,
     trotter_step_number,
+    rot_trotter_step_number,
     trotter_order=1,
     method="both",
 ):
