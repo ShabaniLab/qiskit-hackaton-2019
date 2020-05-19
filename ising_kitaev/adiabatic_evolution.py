@@ -9,8 +9,13 @@ import numpy as np
 from .trotter import trotter
 from .coupler import mid_braiding_manipulation
 
+
 def estimate_gap(zeeman):
-    """
+    """Estimate the gap based on the current zeeman configuration.
+
+    The estimate is a naive semiclassical estimate based on the difference
+    between ↑↑↑→→ and ↑↑→→→, whose energy difference is |J-h| where h is the
+    field of the middle spin.
 
     Parameters
     ----------
@@ -18,12 +23,21 @@ def estimate_gap(zeeman):
         Zeeman field per site from which to estimate the gap.
 
     """
-    return 2*np.abs(np.min(zeeman))
+    return np.abs(np.min(np.abs(1 - zeeman)))
 
 
-def run_adiabatic_zeeman_change(circuit, qreg, initial_zeeman, final_zeeman,
-                                coupler_inter, gap_fraction, min_increment,
-                                delay, trotter_step_number):
+def run_adiabatic_zeeman_change(
+    circuit,
+    qreg,
+    initial_zeeman,
+    final_zeeman,
+    coupler_inter,
+    gap_fraction,
+    min_increment,
+    delay,
+    trotter_step_number,
+    trotter_order=1,
+):
     """Adiabatically evolve the system between two field configurations.
 
     Parameters
@@ -60,25 +74,38 @@ def run_adiabatic_zeeman_change(circuit, qreg, initial_zeeman, final_zeeman,
     min_z = np.min(zeeman_diff)
     max_z = np.max(zeeman_diff)
     if min_z and max_z:
-        assert -min_z == max_z,\
-            "Non-symmetric transformation of Zeeman field"
+        assert -min_z == max_z, "Non-symmetric transformation of Zeeman field"
 
     zeeman_distance = np.max(np.abs(zeeman_diff))
     zeeman_update_sign = np.sign(zeeman_diff)
 
     dt = delay / trotter_step_number
     # First evolve the system.
-    trotter(circuit, qreg, initial_zeeman, coupler_inter, dt,
-            trotter_step_number)
+    trotter(
+        circuit,
+        qreg,
+        initial_zeeman,
+        coupler_inter,
+        dt,
+        trotter_step_number,
+        order=trotter_order,
+    )
 
     # Evolve the system till we reach the final zeeman.
     i = 0
     while zeeman_distance > 0:
         gap = estimate_gap(zi)
-        zeeman_step = min(max(gap_fraction*gap, min_increment),
-                          zeeman_distance)
-        zi += zeeman_update_sign*zeeman_step
-        trotter(circuit, qreg, zi, coupler_inter, dt, trotter_step_number)
+        zeeman_step = min(max(gap_fraction * gap, min_increment), zeeman_distance)
+        zi += zeeman_update_sign * zeeman_step
+        trotter(
+            circuit,
+            qreg,
+            zi,
+            coupler_inter,
+            dt,
+            trotter_step_number,
+            order=trotter_order,
+        )
 
         zeeman_distance -= zeeman_step
 
@@ -108,12 +135,11 @@ def determine_intermediate_zeemans(initial_zeeman, final_zeeman, method):
         # The site was added, compute the distance to the initial chain and
         # store the index as value
         if site == 1:
-            changes['added'][np.min(np.abs(if_sites - index))] = index
+            changes["added"][np.min(np.abs(if_sites - index))] = index
         # The site was removed, compute the distance to the final chain and
         # store the index as value
         elif site == -1:
-            changes['removed'][np.min(np.abs(ff_sites - index))] = index
-
+            changes["removed"][np.min(np.abs(ff_sites - index))] = index
 
     # For each pair of modications either create a zeeman with both
     # or two different if the method is single.
@@ -121,30 +147,41 @@ def determine_intermediate_zeemans(initial_zeeman, final_zeeman, method):
     # largest to smallest
     zeemans = []
     previous_zeeman = initial_zeeman
-    for added, removed in zip_longest(sorted(changes['added']),
-                                      reversed(sorted(changes['removed']))):
+    for added, removed in zip_longest(
+        sorted(changes["added"]), reversed(sorted(changes["removed"]))
+    ):
         if added:
             z = np.copy(previous_zeeman)
-            index = changes['added'][added]
+            index = changes["added"][added]
             z[index] = final_zeeman[index]
             zeemans.append(z)
             previous_zeeman = z
         if removed:
             z = np.copy(previous_zeeman)
-            index = changes['removed'][removed]
+            index = changes["removed"][removed]
             z[index] = final_zeeman[index]
             zeemans.append(z)
             previous_zeeman = z
 
-    if method == 'both':
+    if method == "both":
         zeemans = zeemans[1::2]
 
     return zeemans
 
 
-def move_chain(circuit, qreg, initial_zeeman, final_zeeman, coupler_inter,
-               gap_fraction, min_increment, delay, trotter_step_number,
-               method='both'):
+def move_chain(
+    circuit,
+    qreg,
+    initial_zeeman,
+    final_zeeman,
+    coupler_inter,
+    gap_fraction,
+    min_increment,
+    delay,
+    trotter_step_number,
+    trotter_order=1,
+    method="both",
+):
     """Move the chain by one site step.
 
     The initial and final configurations are deduced from the zeeman fields.
@@ -175,20 +212,40 @@ def move_chain(circuit, qreg, initial_zeeman, final_zeeman, coupler_inter,
         chain is always elongated first) or from both ends.
 
     """
-    zeemans = determine_intermediate_zeemans(initial_zeeman, final_zeeman,
-                                             method)
+    zeemans = determine_intermediate_zeemans(initial_zeeman, final_zeeman, method)
 
     i_zeeman = initial_zeeman
     for zeeman in zeemans:
-        run_adiabatic_zeeman_change(circuit, qreg, i_zeeman, zeeman,
-                                    coupler_inter, gap_fraction, min_increment,
-                                    delay, trotter_step_number)
+        run_adiabatic_zeeman_change(
+            circuit,
+            qreg,
+            i_zeeman,
+            zeeman,
+            coupler_inter,
+            gap_fraction,
+            min_increment,
+            delay,
+            trotter_step_number,
+            trotter_order,
+        )
         i_zeeman = zeeman
 
 
-def braid_chain(circuit, qreg, theta, step_number, initial_zeeman,
-                coupler_inter, gap_fraction, min_increment, delay,
-                trotter_step_number, method='both'):
+def braid_chain(
+    circuit,
+    qreg,
+    theta,
+    step_number,
+    initial_zeeman,
+    coupler_inter,
+    gap_fraction,
+    min_increment,
+    delay,
+    rot_time,
+    trotter_step_number,
+    trotter_order=1,
+    method="both",
+):
     """Perform a full braiding operation on a properly initialized system
 
     Parameters
@@ -214,19 +271,52 @@ def braid_chain(circuit, qreg, theta, step_number, initial_zeeman,
         stuck.
     delay : float
         Time between two update of the Zeeman field.
+    rot_time : float
+        Total time to take to perform the rotation of the coupler.
     trotter_step_number : int
         Number of Trotter step to perform between two fields updates.
+    rot_trotter_step_number : int
+        Number of Trotter step to perform to complete the rotation of the coupler.
     method : {'both', 'single'}
         Should the chain movement occurs only from one side at a time (the
         chain is always elongated first) or from both ends.
 
     """
     final_zeeman = initial_zeeman[::-1]
-    move_chain(circuit, qreg, initial_zeeman, final_zeeman, coupler_inter,
-               gap_fraction, min_increment, delay, trotter_step_number,
-               method)
-    mid_braiding_manipulation(circuit, qreg, theta, step_number, final_zeeman,
-                              coupler_inter, delay, trotter_step_number)
-    move_chain(circuit, qreg, final_zeeman, initial_zeeman, coupler_inter,
-               gap_fraction, min_increment, delay, trotter_step_number,
-               method)
+    move_chain(
+        circuit,
+        qreg,
+        initial_zeeman,
+        final_zeeman,
+        coupler_inter,
+        gap_fraction,
+        min_increment,
+        delay,
+        trotter_step_number,
+        trotter_order,
+        method,
+    )
+    mid_braiding_manipulation(
+        circuit,
+        qreg,
+        theta,
+        step_number,
+        final_zeeman,
+        coupler_inter,
+        rot_time,
+        rot_trotter_step_number,
+        trotter_order,
+    )
+    move_chain(
+        circuit,
+        qreg,
+        final_zeeman,
+        initial_zeeman,
+        coupler_inter,
+        gap_fraction,
+        min_increment,
+        delay,
+        trotter_step_number,
+        trotter_order,
+        method,
+    )

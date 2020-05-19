@@ -7,6 +7,7 @@ from math import pi
 
 from .trotter import trotter
 
+
 def initialize_coupler(circuit, qreg):
     """Initialize the coupler such that e need only one forward-backward move.
 
@@ -19,11 +20,20 @@ def initialize_coupler(circuit, qreg):
         coupler.
 
     """
-    circuit.rx(pi/2, qreg[len(qreg)-1])
+    circuit.rx(pi / 2, qreg[len(qreg) - 1])
 
 
-def mid_braiding_manipulation(circuit, qreg, theta, step_number, zeeman,
-                              coupler_inter, delay, trotter_step_number):
+def mid_braiding_manipulation(
+    circuit,
+    qreg,
+    theta,
+    step_number,
+    zeeman,
+    coupler_inter,
+    delay,
+    trotter_step_number,
+    trotter_order=1,
+):
     """Manipulation performed on the coupler at mid-braiding.
 
     circuit : qiskit.QuantumCircuit
@@ -40,13 +50,14 @@ def mid_braiding_manipulation(circuit, qreg, theta, step_number, zeeman,
     coupler_inter : float
         Strength of the interaction with the coupler.
     delay : float
-        Time between two update of the Zeeman field.
+        Total time to use to perform the full rotation of the coupler.
     trotter_step_number : int
         Number of Trotter step to perform between two fields updates.
 
     """
     dt = delay / trotter_step_number
     for i in range(step_number):
-        trotter(circuit, qreg, zeeman, coupler_inter, dt,
-                trotter_step_number)
-        circuit.ry(theta/step_number, qreg[len(qreg)-1])
+        trotter(
+            circuit, qreg, zeeman, coupler_inter, dt, trotter_step_number, trotter_order
+        )
+        circuit.ry(theta / step_number, qreg[len(qreg) - 1])
