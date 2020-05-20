@@ -26,12 +26,15 @@ def coupler_hamiltonian(qc, q, i0, i1, interaction):
 
     The coupler qubit is always the last coupling in the register.
 
+    Based on Realization of a General Three-Qubit Quantum Gate
+    by Farrokh Vatan and Colin P. Williams
+
     """
     coupler_index = len(q) - 1
     qc.cx(q[i1], q[i0])
     qc.h(q[coupler_index])
     qc.cx(q[i0], q[coupler_index])
-    qc.rz(-interaction, q[coupler_index])
+    qc.rz(-2 * interaction, q[coupler_index])
     qc.cx(q[i0], q[coupler_index])
     qc.h(q[coupler_index])
     qc.cx(q[i1], q[i0])
