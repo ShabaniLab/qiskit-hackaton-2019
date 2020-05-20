@@ -22,7 +22,7 @@ def zeeman_term(qc, q, i, mag):
 
 
 def coupler_hamiltonian(qc, q, i0, i1, interaction):
-    """Implement the σ_z σ_z σ_x interaction with the coupler qubit.
+    """Implement the σ_z σ_z σ_z interaction with the coupler qubit.
 
     The coupler qubit is always the last coupling in the register.
 
@@ -30,14 +30,11 @@ def coupler_hamiltonian(qc, q, i0, i1, interaction):
     by Farrokh Vatan and Colin P. Williams
 
     """
-    coupler_index = len(q) - 1
-    qc.cx(q[i1], q[i0])
-    qc.h(q[coupler_index])
-    qc.cx(q[i0], q[coupler_index])
-    qc.rz(-2 * interaction, q[coupler_index])
-    qc.cx(q[i0], q[coupler_index])
-    qc.h(q[coupler_index])
-    qc.cx(q[i1], q[i0])
+    qc.cx(q[i0], q[-1])
+    qc.cx(q[i1], q[-1])
+    qc.rz(2 * interaction, q[-1])
+    qc.cx(q[i1], q[-1])
+    qc.cx(q[i0], q[-1])
 
 
 def interaction_hamiltonian(

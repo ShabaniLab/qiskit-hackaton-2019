@@ -8,7 +8,7 @@ from math import pi
 from .trotter import trotter
 
 
-def initialize_coupler(circuit, qreg):
+def initialize_coupler(circuit, qreg, axis="+x"):
     """Initialize the coupler such that e need only one forward-backward move.
 
     Parameters
@@ -20,7 +20,10 @@ def initialize_coupler(circuit, qreg):
         coupler.
 
     """
-    circuit.rx(pi / 2, qreg[len(qreg) - 1])
+    if axis == "+x":
+        circuit.rx(pi / 2, qreg[-1])
+    if axis == "-z":
+        circuit.rx(pi, qreg[-1])
 
 
 def mid_braiding_manipulation(

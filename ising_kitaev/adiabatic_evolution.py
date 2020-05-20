@@ -15,8 +15,7 @@ def estimate_gap(zeeman, gap_fraction, zeeman_update_sign):
 
     The estimate is a naive semiclassical estimate based on the difference
     between ↑↑↑→→ and ↑↑→→→, whose energy difference is |J-h| where h is the
-    field of the middle spin, in the situation after the update. This ensure we
-    do not approach to quickly the gap.
+    field of the middle spin. We take the smallest value between before and after the potential update. This ensure we do not approach the gap too quickly .
 
     Parameters
     ----------
