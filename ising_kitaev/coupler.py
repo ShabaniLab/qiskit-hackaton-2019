@@ -27,7 +27,6 @@ def mid_braiding_manipulation(
     circuit,
     qreg,
     theta,
-    step_number,
     zeeman,
     coupler_inter,
     delay,
@@ -43,8 +42,6 @@ def mid_braiding_manipulation(
         coupler.
     theta : float
         Rotation to perform on the coupler qubit midway in the braiding.
-    step_number : int
-        Number of step to use to perfrom the rotation.
     zeeman : np.ndarray
         Zeeman field per site.
     coupler_inter : float
@@ -56,8 +53,8 @@ def mid_braiding_manipulation(
 
     """
     dt = delay / trotter_step_number
-    for i in range(step_number):
+    for i in range(trotter_step_number):
         trotter(
             circuit, qreg, zeeman, coupler_inter, dt, trotter_step_number, trotter_order
         )
-        circuit.ry(theta / step_number, qreg[len(qreg) - 1])
+        circuit.ry(theta / trotter_step_number, qreg[len(qreg) - 1])

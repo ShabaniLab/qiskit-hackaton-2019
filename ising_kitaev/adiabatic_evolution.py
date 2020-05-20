@@ -10,12 +10,13 @@ from .trotter import trotter
 from .coupler import mid_braiding_manipulation
 
 
-def estimate_gap(zeeman):
+def estimate_gap(zeeman, gap_fraction, zeeman_update_sign):
     """Estimate the gap based on the current zeeman configuration.
 
     The estimate is a naive semiclassical estimate based on the difference
     between ↑↑↑→→ and ↑↑→→→, whose energy difference is |J-h| where h is the
-    field of the middle spin.
+    field of the middle spin, in the situation after the update. This ensure we
+    do not approach to quickly the gap.
 
     Parameters
     ----------
@@ -23,7 +24,9 @@ def estimate_gap(zeeman):
         Zeeman field per site from which to estimate the gap.
 
     """
-    return np.abs(np.min(np.abs(1 - zeeman)))
+    initial_gap = np.abs(np.min(np.abs(1 - zeeman)))
+    new_possible_zi = zeeman + zeeman_update_sign * initial_gap * gap_fraction
+    return np.abs(np.min(np.abs(1 - new_possible_zi)))
 
 
 def run_adiabatic_zeeman_change(
@@ -94,7 +97,7 @@ def run_adiabatic_zeeman_change(
     # Evolve the system till we reach the final zeeman.
     i = 0
     while zeeman_distance > 0:
-        gap = estimate_gap(zi)
+        gap = estimate_gap(zi, gap_fraction, zeeman_update_sign)
         zeeman_step = min(max(gap_fraction * gap, min_increment), zeeman_distance)
         zi += zeeman_update_sign * zeeman_step
         trotter(
@@ -106,7 +109,6 @@ def run_adiabatic_zeeman_change(
             trotter_step_number,
             order=trotter_order,
         )
-
         zeeman_distance -= zeeman_step
 
 
@@ -235,7 +237,6 @@ def braid_chain(
     circuit,
     qreg,
     theta,
-    step_number,
     initial_zeeman,
     coupler_inter,
     gap_fraction,
@@ -258,8 +259,6 @@ def braid_chain(
         coupler.
     theta : float
         Rotation to perform on the coupler qubit midway in the braiding.
-    step_number : int
-        Number of step to use to perfrom the rotation.
     initial_zeeman : np.ndarray
         Initial Zeeman field per site.
     coupler_inter : float
@@ -297,17 +296,17 @@ def braid_chain(
         trotter_order,
         method,
     )
-    mid_braiding_manipulation(
-        circuit,
-        qreg,
-        theta,
-        step_number,
-        final_zeeman,
-        coupler_inter,
-        rot_time,
-        rot_trotter_step_number,
-        trotter_order,
-    )
+    if coupler_inter:
+        mid_braiding_manipulation(
+            circuit,
+            qreg,
+            theta,
+            final_zeeman,
+            coupler_inter,
+            rot_time,
+            rot_trotter_step_number,
+            trotter_order,
+        )
     move_chain(
         circuit,
         qreg,

@@ -4,11 +4,11 @@
 import numpy as np
 
 
-def rotate_to_measurement_basis(qc, q, ferromagnetic_qubits, basis='logical'):
+def rotate_to_measurement_basis(qc, q, ferromagnetic_qubits, basis="logical"):
     """Add a projective measurement along the specified basis for some qubits.
 
     """
-    if basis == 'logical':
+    if basis == "logical":
         # Measurement ( Implement U^† )
         n = len(ferromagnetic_qubits)
         first_ferro = min(ferromagnetic_qubits)
@@ -18,11 +18,11 @@ def rotate_to_measurement_basis(qc, q, ferromagnetic_qubits, basis='logical'):
         # later)
         for i in reversed(range(1, n)):
             # num of cnot in each iteration
-            for k in range(np.int(np.exp2(i-1))):
-                if np.int(k+np.exp2(i-1)) >= np.int(n):
+            for k in range(np.int(np.exp2(i - 1))):
+                if np.int(k + np.exp2(i - 1)) >= np.int(n):
                     break
                 index = first_ferro + k
-                qc.cx(q[index], q[np.int(index+np.exp2(i-1))])
+                qc.cx(q[index], q[np.int(index + np.exp2(i - 1))])
 
         qc.h(q[ferromagnetic_qubits[0]])
 
