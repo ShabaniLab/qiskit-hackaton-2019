@@ -24,9 +24,10 @@ def estimate_gap(zeeman, gap_fraction, zeeman_update_sign):
         Zeeman field per site from which to estimate the gap.
 
     """
-    initial_gap = np.abs(np.min(np.abs(1 - zeeman)))
+    initial_gap = np.min(np.abs(1 - zeeman))
     new_possible_zi = zeeman + zeeman_update_sign * initial_gap * gap_fraction
-    return np.abs(np.min(np.abs(1 - new_possible_zi)))
+    final_gap = np.min(np.abs(1 - new_possible_zi))
+    return min(initial_gap, final_gap)
 
 
 def run_adiabatic_zeeman_change(
