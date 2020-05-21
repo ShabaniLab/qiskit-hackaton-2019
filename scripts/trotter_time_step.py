@@ -82,7 +82,7 @@ def estimate_fidelity(timestep, use_logical_state, coupler, should_braid):
     braid_chain(
         qcirc,
         qreg,
-        np.pi,
+        np.pi if should_braid else 0.0,
         initial_config,
         COUPLER_STRENGTH if coupler else None,
         GAP_FRACTION,
@@ -103,7 +103,6 @@ def estimate_fidelity(timestep, use_logical_state, coupler, should_braid):
         job = execute(
             qcirc, backend, shots=SHOTS, backend_options={"max_parallel_threads": 4}
         )
-
         result = job.result()
         print(result.get_counts())
         if should_braid:
