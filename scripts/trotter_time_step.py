@@ -10,7 +10,7 @@ FERRO_DOMAIN_SIZE = 3
 
 H_FERRO = 0.01
 
-H_PARA = 4
+H_PARA = 5
 
 ZEEMAN_UPDATE_DELAY = 2
 
@@ -23,11 +23,13 @@ COUPLER_STRENGTH = 1.0
 COUPLER_DURATION = 2
 
 SHOTS = 10000
-# 0.01, 0.02, 0.04, 0.05,
-TROTTER_STEPS = [0.05, 0.1, 0.2, 0.5]
+
+REPETITIONS = 10
+
+TROTTER_STEPS = [0.01, 0.02, 0.04, 0.05, 0.1, 0.2, 0.4, 0.5, 1, 2]
 TROTTER_STEPS.reverse()
 
-RESULTS_PATH = "test_trotter.csv"
+RESULTS_PATH = "trotter_step_evaluation.csv"
 
 USE_RESULTS = False
 
@@ -96,22 +98,25 @@ def estimate_fidelity(timestep, use_logical_state, coupler, should_braid):
     add_measurement(qcirc, qreg, creg, list(range(FERRO_DOMAIN_SIZE)))
 
     backend = Aer.get_backend("qasm_simulator")
-    job = execute(
-        qcirc, backend, shots=SHOTS, backend_options={"max_parallel_threads": 4}
-    )
+    vals = []
+    for i in range(REPETITIONS):
+        job = execute(
+            qcirc, backend, shots=SHOTS, backend_options={"max_parallel_threads": 4}
+        )
 
-    result = job.result()
-    print(result.get_counts())
-    if should_braid:
-        val = (result.get_counts().get("1" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
-    else:
-        val = (result.get_counts().get("0" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
-    return val
+        result = job.result()
+        print(result.get_counts())
+        if should_braid:
+            val = (result.get_counts().get("1" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
+        else:
+            val = (result.get_counts().get("0" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
+        vals.append(val)
+    return np.average(vals), np.std(vals)
 
 
 if not os.path.isfile(RESULTS_PATH) or not USE_RESULTS:
 
-    results = np.zeros((5, len(TROTTER_STEPS)))
+    results = np.zeros((10, len(TROTTER_STEPS)))
     for i, step in enumerate(TROTTER_STEPS):
         print(f"Computation for Δt = {step}")
         for j, (l, c, b) in enumerate(
@@ -122,16 +127,23 @@ if not os.path.isfile(RESULTS_PATH) or not USE_RESULTS:
             )
         ):
             print(f"Case: logical_state {l}, coupler {c}, braiding {b}")
-            results[j, i] = estimate_fidelity(step, l, c, b)
+            val, std = estimate_fidelity(step, l, c, b)
+            results[2 * j, i] = val
+            results[2 * j + 1, i] = std
 
     df = pd.DataFrame(
         {
             "Steps": np.array(TROTTER_STEPS),
             "No coupler - |↑↑↑>": results[0],
-            "No coupler - |0>": results[1],
-            # "Coupler - |↑↑↑>": results[2],
-            # "Coupler - |0>": results[3],
-            # "Braiding": results[4],
+            "No coupler - |0>": results[2],
+            "Coupler - |↑↑↑>": results[4],
+            "Coupler - |0>": results[6],
+            "Braiding": results[8],
+            "No coupler - |↑↑↑> - std": results[1],
+            "No coupler - |0> - std": results[3],
+            "Coupler - |↑↑↑> - std": results[5],
+            "Coupler - |0> - std": results[7],
+            "Braiding - std": results[9],
         }
     )
     if RESULTS_PATH:
@@ -141,9 +153,11 @@ else:
 
 plt.figure(constrained_layout=True)
 for column in df.columns[1:]:
-    if column == "Steps":
+    if column == "Steps" or column.endswith("std"):
         continue
-    plt.plot(df["Steps"], df[column], marker="o", label=column)
+    plt.errorbar(
+        df["Steps"], df[column], df[column + " - std"], marker="*", label=column
+    )
 plt.xscale("log")
 plt.xlabel("Trotter step")
 plt.ylabel("Fidelity")

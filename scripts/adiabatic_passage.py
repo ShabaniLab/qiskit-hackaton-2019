@@ -10,24 +10,25 @@ FERRO_DOMAIN_SIZE = 3
 
 H_FERRO = 0.01
 
-H_PARA = 4
+H_PARA = 5
 
 ZEEMAN_UPDATE_DELAY = 2
 
 GAP_FRACTION = 0.0
 
-MIN_INCREMENT = 0.05
+MIN_INCREMENTS = [0.02, 0.05, 0.1, 0.2, 0.5]
 
 COUPLER_STRENGTH = 1.0
 
 COUPLER_DURATION = 2
 
 SHOTS = 10000
-# 0.01, 0.02, 0.04, 0.05,
-TROTTER_STEPS = [0.02, 0.05, 0.1, 0.2, 0.5]
-TROTTER_STEPS.reverse()
 
-RESULTS_PATH = "test.csv"
+REPETITIONS = 3
+
+TROTTER_STEP = 0.1
+
+RESULTS_PATH = "adiabatic-passage.csv"
 
 USE_RESULTS = False
 
@@ -78,9 +79,9 @@ def estimate_fidelity(timestep, coupler, strategy):
         initial_config[::-1],
         COUPLER_STRENGTH,
         GAP_FRACTION,
-        MIN_INCREMENT,
+        incr,
         ZEEMAN_UPDATE_DELAY,
-        int(round(ZEEMAN_UPDATE_DELAY / timestep)),
+        int(round(ZEEMAN_UPDATE_DELAY / TROTTER_STEP)),
         method=strategy,
     )
     add_measurement(qcirc, qreg, creg, [-2 - i for i in range(FERRO_DOMAIN_SIZE)])
@@ -90,33 +91,47 @@ def estimate_fidelity(timestep, coupler, strategy):
         qcirc, backend, shots=SHOTS, backend_options={"max_parallel_threads": 4}
     )
 
-    result = job.result()
-    print(result.get_counts())
-    if coupler == "-z":
-        val = (result.get_counts().get("1" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
-    else:
-        val = (result.get_counts().get("0" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
-    return val
+    backend = Aer.get_backend("qasm_simulator")
+    vals = []
+    for i in range(REPETITIONS):
+        job = execute(
+            qcirc, backend, shots=SHOTS, backend_options={"max_parallel_threads": 4}
+        )
+
+        result = job.result()
+        print(result.get_counts())
+        if coupler == "-z":
+            val = (result.get_counts().get("1" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
+        else:
+            val = (result.get_counts().get("0" * FERRO_DOMAIN_SIZE, 0.0) / SHOTS) * 100
+        vals.append(val)
+    return np.average(vals), np.std(vals)
 
 
 if not os.path.isfile(RESULTS_PATH) or not USE_RESULTS:
 
-    results = np.zeros((4, len(TROTTER_STEPS)))
-    for i, step in enumerate(TROTTER_STEPS):
-        print(f"Computation for Δt = {step}")
+    results = np.zeros((8, len(TROTTER_STEPS)))
+    for i, incr in enumerate(MIN_INCREMENTS):
+        print(f"Computation for Δh = {incr}")
         for j, (coupler, strategy) in enumerate(
             zip(("+z", "-z", "+z", "-z"), ("both", "both", "single", "single"))
         ):
             print(f"Computation for coupler: {coupler}, strategy: {strategy}")
-            results[j, i] = estimate_fidelity(step, coupler, strategy)
+            val, std = estimate_fidelity(incr, coupler, strategy)
+            results[j, i] = val
+            results[j, i] = std
 
     df = pd.DataFrame(
         {
-            "Steps": np.array(TROTTER_STEPS),
+            "Field increments": np.array(MIN_INCREMENTS),
             "Coupler: Up, Strategy: both": results[0],
-            "Coupler: Down, Strategy: both": results[1],
-            "Coupler: Up, Strategy: single": results[2],
-            "Coupler: Down, Strategy: single": results[3],
+            "Coupler: Down, Strategy: both": results[2],
+            "Coupler: Up, Strategy: single": results[4],
+            "Coupler: Down, Strategy: single": results[6],
+            "Coupler: Up, Strategy: both - std": results[1],
+            "Coupler: Down, Strategy: both - std": results[3],
+            "Coupler: Up, Strategy: single - std": results[5],
+            "Coupler: Down, Strategy: single - std": results[7],
         }
     )
     if RESULTS_PATH:
@@ -126,11 +141,17 @@ else:
 
 plt.figure(constrained_layout=True)
 for column in df.columns[1:]:
-    if column == "Steps":
+    if column == "Field increments" or column.endswith("std"):
         continue
-    plt.plot(df["Steps"], df[column], marker="o", label=column)
+    plt.errorbar(
+        df["Field increments"],
+        df[column],
+        df[column + " - std"],
+        marker="*",
+        label=column,
+    )
 plt.xscale("log")
-plt.xlabel("Trotter step")
+plt.xlabel("Field increment")
 plt.ylabel("Fidelity")
 plt.legend()
 plt.show()
